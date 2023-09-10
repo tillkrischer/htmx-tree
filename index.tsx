@@ -65,6 +65,7 @@ const createAsset = (asset: Asset) => {
 const BaseHtml = ({children}: elements.Children) => (
     <html>
     <head>
+        <title>tree</title>
         <meta charset="UTF-8"></meta>
         <meta
             name="viewport"
@@ -81,17 +82,22 @@ const BaseHtml = ({children}: elements.Children) => (
 
 
 app.get('/', (req, res) => {
-    res.send(<BaseHtml>
+    res.send(
+        <BaseHtml>
+        <header class="border-b">
+            <div class="pl-8 pr-8 pt-2 pb-2 text-lg font-bold">tree</div>
+        </header>
         <div class="h-screen flex">
             <div class="w-72 pt-4 pr-4">
                 <ExpandingTreeItem expanded={false} id={1}/>
             </div>
             <Separator/>
             <div class="flex-grow p-4">
-                <Form/>
+                <ResettingForm/>
             </div>
         </div>
-    </BaseHtml>)
+    </BaseHtml>
+    )
 })
 
 app.get('/tree-item-expand', (req, res) => {
@@ -218,6 +224,10 @@ const Separator = ({children, ...attributes}: elements.Attributes) => {
     );
 };
 
+app.get('/select', (req, res) => {
+    res.send(<ResettingForm />)
+})
+
 app.get('/select/:id', (req, res) => {
     const id = Number(req.params.id);
     const asset = getById(id);
@@ -225,13 +235,28 @@ app.get('/select/:id', (req, res) => {
         [`select-${id}`]: true,
         ["newSelection"]: true
     }));
-    res.send(<Form asset={asset}/>)
+    res.send(<ResettingForm asset={asset}/>)
 })
 
 app.get('/select/:parentId/newChild', (req, res) => {
     const parentId = Number(req.params.parentId);
-    res.send(<Form parentId={parentId}/>)
+    res.send(<ResettingForm parentId={parentId}/>)
 })
+
+const ResettingForm = (props: { asset?: Asset, parentId?: number }) => {
+    const {asset, parentId} = props;
+
+    return (
+        <div
+            hx-get="/select"
+            hx-trigger="resetForm from:body"
+            hx-swap="outerHTML"
+            hx-target="this"
+        >
+            <Form parentId={parentId} asset={asset} />
+        </div>
+    )
+}
 
 const Form = (props: { asset?: Asset, parentId?: number }) => {
     const {asset, parentId} = props;
@@ -267,7 +292,7 @@ app.post("/asset/:id", (req, res) => {
     updateAsset(updatedAsset);
 
     res.set("HX-Trigger", `updated-${id}`);
-    res.send(<Form asset={updatedAsset}/>)
+    res.send(<ResettingForm asset={updatedAsset}/>)
 })
 
 app.post("/asset/:parentId/newChild", (req, res) => {
@@ -281,10 +306,11 @@ app.post("/asset/:parentId/newChild", (req, res) => {
     const created = createAsset(newAsset);
 
     res.set("HX-Trigger", JSON.stringify({
-        [`newChild-${parentId}`]: true
+        [`newChild-${parentId}`]: true,
+        'resetForm': true,
     }));
 
-    res.send(<Form asset={created}/>)
+    res.send(<ResettingForm asset={created}/>)
 })
 
 
@@ -330,7 +356,6 @@ const IconButton = ({children, ...attributes}: elements.Attributes) => {
 
 const TreeButtonComponent = (props: elements.Attributes & elements.Children & { selected: boolean }) => {
     const {children, selected, ...attributes} = props;
-    const bg = selected ? "bg-gray-200 hover:bg-gray-300" : "hover:bg-gray-100"
     return (
         <button
             class={`w-full inline-flex h-8 items-center rounded-md px-4 text-sm font-medium text-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2`}
