@@ -252,6 +252,7 @@ const ResettingForm = (props: { asset?: Asset, parentId?: number }) => {
             hx-trigger="resetForm from:body"
             hx-swap="outerHTML"
             hx-target="this"
+            id="form"
         >
             <Form parentId={parentId} asset={asset} />
         </div>
@@ -262,7 +263,7 @@ const Form = (props: { asset?: Asset, parentId?: number }) => {
     const {asset, parentId} = props;
 
     if (!asset && !parentId) {
-        return <div id="form"/>
+        return <div />
     }
 
     let postUrl = "";
@@ -272,7 +273,7 @@ const Form = (props: { asset?: Asset, parentId?: number }) => {
         postUrl = `/asset/${parentId}/newChild`
     }
 
-    return <form id="form" hx-post={postUrl} hx-swap="outerHTML" class="space-y-4">
+    return <form hx-post={postUrl} hx-swap="outerHTML" hx-target="this" class="space-y-4">
         <div class="space-y-2">
             <Label>Name</Label>
             <Input type="text" name="name" value={asset?.name ?? ""}/>
