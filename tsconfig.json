@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "moduleResolution": "node16",
+    "jsx": "react",
+    "jsxFactory": "elements.createElement"
+  }
+}
+
