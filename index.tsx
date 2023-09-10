@@ -72,7 +72,7 @@ const BaseHtml = ({children}: elements.Children) => (
 app.get('/', (req, res) => {
     res.send(<BaseHtml>
         <div class="h-screen flex">
-            <div class="w-72 pt-4">
+            <div class="w-72 pt-4 pr-4">
                 <ExpandingTreeItem expanded={false} id={1}/>
             </div>
             <Separator/>
@@ -139,18 +139,23 @@ const SelectingTreeButton = (props: { id: number, expanded?: boolean, selected?:
 
 const TreeButton = (props: { id: number, expanded?: boolean, selected?: boolean }) => {
     const {id, selected, expanded} = props;
+    const bg = selected ? "bg-gray-200" : "hover:bg-gray-100"
     return (
-        <TreeButtonComponent
-            hx-target="#form"
-            hx-swap="outerHTML"
-            hx-get={`/select/${id}`}
-            selected={selected}
-        >
-            {expanded ? <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronDown}</div> :
-                <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronRight}</div>}
-            <TreeLabel id={id}/>
-            <button class="[&>svg]:w-3 [&>svg]:h-3 ml-1">{plus}</button>
-        </TreeButtonComponent>
+        <div class={`flex rounded-md ${bg}`}>
+            <div class="flex-1 min-w-0">
+                <TreeButtonComponent
+                    hx-target="#form"
+                    hx-swap="outerHTML"
+                    hx-get={`/select/${id}`}
+                    selected={selected}
+                >
+                    {expanded ? <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronDown}</div> :
+                        <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronRight}</div>}
+                    <TreeLabel id={id}/>
+                </TreeButtonComponent>
+            </div>
+            {selected ? <IconButton>{plus}</IconButton> : <span class="w-8"/>}
+        </div>
     );
 }
 
@@ -163,6 +168,7 @@ const TreeLabel = (props: { id: number }) => {
             hx-trigger={`updated-${id} from:body`}
             hx-swap="outerHTML"
             hx-target="this"
+            class="truncate"
         >
             {asset.name}
         </div>
@@ -259,12 +265,24 @@ const Button = ({children, ...attributes}: elements.Attributes) => {
     );
 };
 
+const IconButton = ({children, ...attributes}: elements.Attributes) => {
+    return (
+        <button
+            class="inline-flex h-8 w-8 items-center justify-center rounded-md  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 [&>svg]:w-3 [&>svg]:h-3 hover:bg-gray-300"
+            {...attributes}
+        >
+            {children}
+        </button>
+    );
+};
+
+
 const TreeButtonComponent = (props: elements.Attributes & elements.Children & { selected: boolean }) => {
     const {children, selected, ...attributes} = props;
     const bg = selected ? "bg-gray-200 hover:bg-gray-300" : "hover:bg-gray-100"
     return (
         <button
-            class={`${bg} inline-flex h-8 items-center justify-center rounded-md px-4 text-sm font-medium text-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2`}
+            class={`w-full inline-flex h-8 items-center rounded-md px-4 text-sm font-medium text-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2`}
             {...attributes}
         >
             {children}
