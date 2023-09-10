@@ -46,9 +46,20 @@ const getAllByParentId = (parentId: number): Asset[] => {
     return assets.filter(a => a.parentId === parentId);
 }
 
-const setAsset = (asset: Asset) => {
+const updateAsset = (asset: Asset) => {
     assets = assets.filter(a => a.id !== asset.id)
     assets.push(asset)
+}
+
+const createAsset = (asset: Asset) => {
+    const newId = Math.max(...assets.map(a => a.id), 0) + 1;
+    const newAsset = {
+        ...asset,
+        id: newId
+    }
+    assets.push(newAsset)
+
+    return newAsset;
 }
 
 const BaseHtml = ({children}: elements.Children) => (
@@ -86,21 +97,32 @@ app.get('/', (req, res) => {
 app.get('/tree-item-expand', (req, res) => {
     const id = Number(req.query.id);
     const expanded = req.query.expanded == "true";
+    const selected = req.query.selected == "true";
     res.send(
-        <ExpandingTreeItem id={id} expanded={expanded} selected/>
+        <ExpandingTreeItem id={id} expanded={expanded} selected={selected}/>
     )
 })
 
 const ExpandingTreeItem = (props: { id: number, expanded?: boolean, selected?: boolean }) => {
     const {id, selected, expanded} = props;
-    const get = `/tree-item-expand?id=${id}&expanded=${!expanded}`
+
+    const newChildRefreshProps = selected ? {
+        "hx-get": `/tree-item-expand?id=${id}&expanded=${expanded}&selected=false`,
+        "hx-trigger": `newChild-${id} from:body`,
+        "hx-target": "closest #expanding-tree-item",
+        "hx-swap": "outerHTML",
+    } : {}
 
     return <div
-        hx-get={get}
+        id="expanding-tree-item"
+        hx-get={`/tree-item-expand?id=${id}&expanded=${!expanded}&selected=true`}
         hx-trigger={`select-${id} from:body`}
         hx-swap="outerHTML"
+        hx-target="this"
     >
-        <TreeItem id={id} selected={selected} expanded={expanded}/>
+        <div {...newChildRefreshProps}>
+            <TreeItem id={id} selected={selected} expanded={expanded}/>
+        </div>
     </div>
 }
 
@@ -130,7 +152,8 @@ const SelectingTreeButton = (props: { id: number, expanded?: boolean, selected?:
     const refreshProps = selected ? {
         "hx-get": `/tree-item-select?id=${id}&expanded=${expanded}`,
         "hx-trigger": "newSelection from:body",
-        "hx-swap": "outerHTML"
+        "hx-swap": "outerHTML",
+        "hx-target": "this",
     } : {}
     return <div {...refreshProps}>
         <TreeButton id={id} selected={selected} expanded={expanded}/>
@@ -154,7 +177,13 @@ const TreeButton = (props: { id: number, expanded?: boolean, selected?: boolean 
                     <TreeLabel id={id}/>
                 </TreeButtonComponent>
             </div>
-            {selected ? <IconButton>{plus}</IconButton> : <span class="w-8"/>}
+            {selected ? <IconButton
+                hx-target="#form"
+                hx-swap="outerHTML"
+                hx-get={`/select/${id}/newChild`}
+            >
+                {plus}
+            </IconButton> : <span />}
         </div>
     );
 }
@@ -199,6 +228,11 @@ app.get('/select/:id', (req, res) => {
     res.send(<Form asset={asset}/>)
 })
 
+app.get('/select/:parentId/newChild', (req, res) => {
+    const parentId = Number(req.params.parentId);
+    res.send(<Form parentId={parentId}/>)
+})
+
 const Form = (props: { asset?: Asset, parentId?: number }) => {
     const {asset, parentId} = props;
 
@@ -230,10 +264,27 @@ app.post("/asset/:id", (req, res) => {
         ...asset,
         name: req.body.name
     }
-    setAsset(updatedAsset);
+    updateAsset(updatedAsset);
 
     res.set("HX-Trigger", `updated-${id}`);
     res.send(<Form asset={updatedAsset}/>)
+})
+
+app.post("/asset/:parentId/newChild", (req, res) => {
+    const parentId = Number(req.params.parentId)
+
+    const newAsset: Asset = {
+        id: 0,
+        parentId: parentId,
+        name: req.body.name,
+    }
+    const created = createAsset(newAsset);
+
+    res.set("HX-Trigger", JSON.stringify({
+        [`newChild-${parentId}`]: true
+    }));
+
+    res.send(<Form asset={created}/>)
 })
 
 
