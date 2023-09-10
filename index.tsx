@@ -1,6 +1,6 @@
 import * as express from 'express';
 import * as elements from "typed-html";
-import {chevronDown, chevronRight} from 'lucide-static/lib';
+import {chevronDown, chevronRight, plus} from 'lucide-static/lib';
 
 const app = express()
 app.use(express.urlencoded({extended: true}));
@@ -16,7 +16,7 @@ type Asset = {
     name: string
 }
 
-const assets: Asset[] = [
+let assets: Asset[] = [
     {
         id: 1,
         name: "root"
@@ -44,6 +44,11 @@ const getById = (id: number): Asset | undefined => {
 
 const getAllByParentId = (parentId: number): Asset[] => {
     return assets.filter(a => a.parentId === parentId);
+}
+
+const setAsset = (asset: Asset) => {
+    assets = assets.filter(a => a.id !== asset.id)
+    assets.push(asset)
 }
 
 const BaseHtml = ({children}: elements.Children) => (
@@ -134,7 +139,6 @@ const SelectingTreeButton = (props: { id: number, expanded?: boolean, selected?:
 
 const TreeButton = (props: { id: number, expanded?: boolean, selected?: boolean }) => {
     const {id, selected, expanded} = props;
-    const asset = getById(id);
     return (
         <TreeButtonComponent
             hx-target="#form"
@@ -142,12 +146,34 @@ const TreeButton = (props: { id: number, expanded?: boolean, selected?: boolean 
             hx-get={`/select/${id}`}
             selected={selected}
         >
-            {expanded ? <div class="[&>svg]:w-3 [&>svg]h-3 mr-1">{chevronDown}</div> :
+            {expanded ? <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronDown}</div> :
                 <div class="[&>svg]:w-3 [&>svg]:h-3 mr-1">{chevronRight}</div>}
-            {asset.name}
+            <TreeLabel id={id}/>
+            <button class="[&>svg]:w-3 [&>svg]:h-3 ml-1">{plus}</button>
         </TreeButtonComponent>
     );
 }
+
+const TreeLabel = (props: { id: number }) => {
+    const {id} = props;
+    const asset = getById(id);
+    return (
+        <div
+            hx-get={`/label/${id}`}
+            hx-trigger={`updated-${id} from:body`}
+            hx-swap="outerHTML"
+            hx-target="this"
+        >
+            {asset.name}
+        </div>
+    )
+}
+
+app.get('/label/:id', (req, res) => {
+    const id = Number(req.params.id);
+    res.send(<TreeLabel id={id}/>)
+})
+
 
 const Separator = ({children, ...attributes}: elements.Attributes) => {
     return (
@@ -164,22 +190,45 @@ app.get('/select/:id', (req, res) => {
         [`select-${id}`]: true,
         ["newSelection"]: true
     }));
-    res.send(
-        <Form asset={asset}/>
-    )
+    res.send(<Form asset={asset}/>)
 })
 
-const Form = (props: { asset?: Asset }) => {
-    const {asset} = props;
+const Form = (props: { asset?: Asset, parentId?: number }) => {
+    const {asset, parentId} = props;
 
-    return <form id="form" class="space-y-4">
+    if (!asset && !parentId) {
+        return <div id="form"/>
+    }
+
+    let postUrl = "";
+    if (asset?.id) {
+        postUrl = `/asset/${asset.id}`
+    } else if (parentId) {
+        postUrl = `/asset/${parentId}/newChild`
+    }
+
+    return <form id="form" hx-post={postUrl} hx-swap="outerHTML" class="space-y-4">
         <div class="space-y-2">
             <Label>Name</Label>
-            <Input type="text" name="firstName" value={asset?.name ?? ""}/>
+            <Input type="text" name="name" value={asset?.name ?? ""}/>
         </div>
         <Button>submit</Button>
     </form>
 }
+
+app.post("/asset/:id", (req, res) => {
+    const id = Number(req.params.id)
+    const asset = getById(id)
+
+    const updatedAsset: Asset = {
+        ...asset,
+        name: req.body.name
+    }
+    setAsset(updatedAsset);
+
+    res.set("HX-Trigger", `updated-${id}`);
+    res.send(<Form asset={updatedAsset}/>)
+})
 
 
 const Input = (attributes: elements.Attributes) => {
